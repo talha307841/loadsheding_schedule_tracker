@@ -1,0 +1,12 @@
+rootProject.name = 'power_alert_pakistan'
+include ':app'
+
+def localPropertiesFile = new File(rootProject.projectDir.parentFile, 'local.properties')
+def localProperties = new Properties()
+
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream -> localProperties.load(stream) }
+}
+
+def flutterSdkPath = localProperties.getProperty('flutter.sdk')
+assert flutterSdkPath != null : 'flutter.sdk is not set in local.properties'
