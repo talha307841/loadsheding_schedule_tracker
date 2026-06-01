@@ -10,6 +10,7 @@ import '../widgets/error_state_view.dart';
 import '../widgets/loading_skeleton.dart';
 import '../widgets/status_chip.dart';
 import '../widgets/schedule_slot_tile.dart';
+import '../widgets/sheets/electricity_gone_report_sheet.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -46,6 +47,14 @@ class HomeScreen extends StatelessWidget {
               StatusChip(isPowerOn: status.isPowerOn),
               const SizedBox(height: 16),
               CountdownTile(nextEventAt: status.nextEventAt),
+              if (status.isPowerOn) ...[
+                const SizedBox(height: 16),
+                _ElectricityGoneButton(
+                  enabled: state.canSubmitElectricityGoneReport(),
+                  cooldownRemaining: state.electricityGoneCooldownRemaining(),
+                  onPressed: () => _openReportSheet(context),
+                ),
+              ],
               const SizedBox(height: 16),
               _TodayScheduleCard(schedule: schedule),
               const SizedBox(height: 16),
@@ -63,6 +72,25 @@ class HomeScreen extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _openReportSheet(BuildContext context) async {
+    final state = context.read<AppStateProvider>();
+    final selection = state.selection;
+    if (selection == null) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => ElectricityGoneReportSheet(
+        areaName: selection.areaName,
+        onSubmit: (reportedTime, reason) async {
+          await state.submitElectricityGoneReport(reportedOutageTime: reportedTime, reason: reason);
+        },
       ),
     );
   }
@@ -139,6 +167,43 @@ class _AccuracyCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ElectricityGoneButton extends StatelessWidget {
+  final bool enabled;
+  final Duration? cooldownRemaining;
+  final VoidCallback onPressed;
+
+  const _ElectricityGoneButton({required this.enabled, required this.cooldownRemaining, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.colorScheme.error,
+          foregroundColor: theme.colorScheme.onError,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        onPressed: enabled ? onPressed : null,
+        icon: const Icon(Icons.electric_bolt),
+        label: Text(
+          enabled ? '⚡ Electricity Gone? Tap to Report' : 'Report locked for ${_formatCooldown(cooldownRemaining)}',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  String _formatCooldown(Duration? remaining) {
+    if (remaining == null || remaining == Duration.zero) {
+      return '0m';
+    }
+    final minutes = remaining.inMinutes;
+    return '${minutes}m';
   }
 }
 

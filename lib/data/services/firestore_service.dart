@@ -9,6 +9,7 @@ import '../models/disco_selection.dart';
 import '../models/load_shedding_schedule.dart';
 import '../models/load_shedding_slot.dart';
 import '../models/outage_report.dart';
+import '../models/outage_report_submission.dart';
 
 class FirestoreService {
   FirestoreService._();
@@ -42,11 +43,20 @@ class FirestoreService {
         .doc(selection.areaId)
         .collection(FirestoreCollections.schedules);
 
-    final query = await collection.orderBy('weekStartDate', descending: true).limit(1).get(const GetOptions(source: Source.serverAndCache));
+    final query = await collection.orderBy('weekStartDate', descending: true).limit(5).get(const GetOptions(source: Source.serverAndCache));
     if (query.docs.isEmpty) {
       return LoadSheddingSchedule.empty(selection.discoId, selection.areaId);
     }
-    return LoadSheddingSchedule.fromMap(query.docs.first.data());
+
+    for (final doc in query.docs) {
+      final data = doc.data();
+      final status = data['status'] as String? ?? 'published';
+      if (status == 'published') {
+        return LoadSheddingSchedule.fromMap(data);
+      }
+    }
+
+    return LoadSheddingSchedule.empty(selection.discoId, selection.areaId);
   }
 
   Future<void> upsertUserProfile(AppUserProfile profile) async {
@@ -61,6 +71,13 @@ class FirestoreService {
       return;
     }
     await _firestore!.collection(FirestoreCollections.reports).add(report.toMap());
+  }
+
+  Future<void> submitOutageReport(OutageReportSubmission submission) async {
+    if (!_configured) {
+      return;
+    }
+    await _firestore!.collection('outage_reports').add(submission.toMap());
   }
 
   Future<ScheduleSnapshot> fetchScheduleSnapshot(DiscoSelection selection) async {

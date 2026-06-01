@@ -169,6 +169,55 @@ class AppStateProvider extends ChangeNotifier {
     await AnalyticsService.instance.logReportSubmitted(wasAccurate: wasAccurate, areaId: selection.areaId);
   }
 
+  bool canSubmitElectricityGoneReport() {
+    final selection = _preferences.selection;
+    if (selection == null) {
+      return false;
+    }
+    final lastReport = localStorageService.lastOutageReportTimestamp(selection.areaId);
+    if (lastReport == null) {
+      return true;
+    }
+    return DateTime.now().difference(lastReport) >= AppConstants.outageReportCooldown;
+  }
+
+  Duration? electricityGoneCooldownRemaining() {
+    final selection = _preferences.selection;
+    if (selection == null) {
+      return null;
+    }
+    final lastReport = localStorageService.lastOutageReportTimestamp(selection.areaId);
+    if (lastReport == null) {
+      return null;
+    }
+    final elapsed = DateTime.now().difference(lastReport);
+    final remaining = AppConstants.outageReportCooldown - elapsed;
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  Future<void> submitElectricityGoneReport({
+    required DateTime reportedOutageTime,
+    required String? reason,
+  }) async {
+    final selection = _preferences.selection;
+    if (selection == null || _scheduleStatus == null) {
+      return;
+    }
+    if (!canSubmitElectricityGoneReport()) {
+      return;
+    }
+
+    await reportRepository.submitElectricityGoneReport(
+      discoId: selection.discoId,
+      areaId: selection.areaId,
+      reportedOutageTime: reportedOutageTime,
+      reason: reason,
+      systemStatusAtReport: _scheduleStatus!.isPowerOn ? 'ON' : 'OFF',
+    );
+    await localStorageService.setLastOutageReportTimestamp(selection.areaId, DateTime.now());
+    notifyListeners();
+  }
+
   Future<void> _syncUser() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {

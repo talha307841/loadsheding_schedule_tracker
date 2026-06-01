@@ -8,5 +8,7 @@ class AppConstants {
   static const String notificationsEnabledKey = 'notifications_enabled';
   static const String darkModeEnabledKey = 'dark_mode_enabled';
   static const String onboardingCompleteKey = 'onboarding_complete';
+  static const String lastOutageReportPrefix = 'last_outage_report_';
   static const Duration defaultOutageReminderOffset = Duration(minutes: 15);
+  static const Duration outageReportCooldown = Duration(minutes: 30);
 }

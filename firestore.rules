@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAnonymous() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function canWriteReport(areaId) {
+      return isAnonymous()
+        && (
+          !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.last_report_area != areaId
+          || request.time > get(/databases/$(database)/documents/users/$(request.auth.uid)).data.last_report_at + duration.value(30, 'm')
+        );
+    }
+
+    match /outage_reports/{reportId} {
+      allow create: if isAnonymous() && canWriteReport(request.resource.data.areaId);
+      allow read: if false;
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /discos/{discoId}/areas/{areaId} {
+      allow read: if true;
+      allow update: if false;
+
+      match /schedules/{weekId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    match /logs/{logId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /outage_events/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

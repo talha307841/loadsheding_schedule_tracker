@@ -40,4 +40,16 @@ class LocalStorageService {
   String? get lastSelectedAreaId => preferences.getString(AppConstants.lastSelectedAreaKey);
   bool get notificationsEnabled => preferences.getBool(AppConstants.notificationsEnabledKey) ?? true;
   bool get darkModeEnabled => preferences.getBool(AppConstants.darkModeEnabledKey) ?? false;
+
+  DateTime? lastOutageReportTimestamp(String areaId) {
+    final raw = preferences.getInt('${AppConstants.lastOutageReportPrefix}$areaId');
+    if (raw == null) {
+      return null;
+    }
+    return DateTime.fromMillisecondsSinceEpoch(raw);
+  }
+
+  Future<void> setLastOutageReportTimestamp(String areaId, DateTime timestamp) async {
+    await preferences.setInt('${AppConstants.lastOutageReportPrefix}$areaId', timestamp.millisecondsSinceEpoch);
+  }
 }

@@ -9,6 +9,7 @@ PowerAlert Pakistan is a Flutter load shedding tracker for WAPDA DISCO areas in 
 - Weekly schedule with outage summaries
 - Firebase Cloud Messaging and local notifications
 - Crowdsource reporting for schedule accuracy
+- Red "Electricity Gone? Tap to Report" button when the app believes power is on
 - Settings for area, notifications, and theme mode
 - Banner and interstitial AdMob support
 - Offline-aware Firestore usage and cached fallback schedules
@@ -40,6 +41,30 @@ The app is written to run in a local fallback mode when Firebase is disabled thr
 - Add your `google-services.json` to `android/app/google-services.json`
 
 Use [android/app/google-services.json.example](android/app/google-services.json.example) as a reference and replace it with your real Firebase file before building a production APK.
+
+## Cloud Functions Backend
+
+The repository now includes a Firebase Functions project in [functions/package.json](functions/package.json) and scraper/aggregation logic in [functions/src/index.js](functions/src/index.js).
+
+- A scheduled function runs every 6 hours and scrapes official DISCO websites.
+- A manual HTTP trigger is available for admins and can be protected with `ADMIN_TRIGGER_SECRET`.
+- Scraped schedules are normalized, deduplicated, validated, and written to Firestore.
+- Flagged changes are marked `pending_review` and published to the `admin_alerts` FCM topic.
+- New `outage_reports` documents trigger aggregation logic that can mark an area as `unscheduled_outage`.
+- Firestore rules are defined in [firestore.rules](firestore.rules).
+
+Deploy with:
+
+```bash
+firebase deploy --only functions,firestore:rules
+```
+
+## Electricity Gone Report
+
+- The Home screen shows a red report button only when the current system status is `Power ON`.
+- The report sheet captures the outage time and optional reason.
+- The app rate-limits one report per area for 30 minutes using SharedPreferences.
+- Reports are written to `outage_reports/{reportId}` with anonymous auth metadata.
 
 ## AdMob Setup
 
